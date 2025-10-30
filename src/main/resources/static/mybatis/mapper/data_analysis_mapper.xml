@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xct.media.queuing.mapper.DataAnalysisMapper">
+    
+    <!-- 业务办理量统计结果映射 -->
+    <resultMap id="bizStatistics" type="com.xct.media.queuing.pojo.DataAnalysisResult">
+        <result property="bizId" column="base_biz_id"/>
+        <result property="bizName" column="base_biz_name"/>
+        <result property="count" column="handle_count"/>
+    </resultMap>
+    
+    <!-- 人员工作量统计结果映射 -->
+    <resultMap id="userStatistics" type="com.xct.media.queuing.pojo.DataAnalysisResult">
+        <result property="userId" column="job_user_id"/>
+        <result property="userName" column="job_user_name"/>
+        <result property="count" column="handle_count"/>
+    </resultMap>
+    
+    <!-- 办理时长统计结果映射 -->
+    <resultMap id="durationStatistics" type="com.xct.media.queuing.pojo.DataAnalysisResult">
+        <result property="bizId" column="base_biz_id"/>
+        <result property="bizName" column="base_biz_name"/>
+        <result property="count" column="handle_count"/>
+        <result property="avgDuration" column="avg_duration"/>
+        <result property="maxDuration" column="max_duration"/>
+        <result property="minDuration" column="min_duration"/>
+    </resultMap>
+    
+    <!-- 人员详细统计结果映射 -->
+    <resultMap id="userDetailStatistics" type="com.xct.media.queuing.pojo.DataAnalysisResult">
+        <result property="userId" column="job_user_id"/>
+        <result property="userName" column="job_user_name"/>
+        <result property="count" column="handle_count"/>
+        <result property="avgDuration" column="avg_duration"/>
+        <result property="goodCount" column="good_count"/>
+        <result property="mediumCount" column="medium_count"/>
+        <result property="badCount" column="bad_count"/>
+        <result property="goodRate" column="good_rate"/>
+    </resultMap>
+    
+    <!-- 综合统计结果映射 -->
+    <resultMap id="comprehensiveStatistics" type="com.xct.media.queuing.pojo.DataAnalysisResult">
+        <result property="count" column="total_count"/>
+        <result property="avgDuration" column="avg_duration"/>
+        <result property="goodCount" column="good_count"/>
+        <result property="mediumCount" column="medium_count"/>
+        <result property="badCount" column="bad_count"/>
+        <result property="goodRate" column="good_rate"/>
+    </resultMap>
+    
+    <!-- 业务办理量统计 -->
+    <select id="getBizHandleStatistics" resultMap="bizStatistics">
+        SELECT 
+            bb.base_biz_id,
+            bb.base_biz_name,
+            COUNT(hbr.handle_biz_id) AS handle_count
+        FROM evaluate_sys.base_biz bb
+        LEFT JOIN evaluate_sys.handle_biz_record hbr ON bb.base_biz_id = hbr.base_biz_id
+        <where>
+            <if test="timeType != 1">
+                <!-- 日/月/年 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,
+                    <if test="timeType == 0">'%Y-%m-%d'</if>
+                    <if test="timeType == 2">'%Y-%m'</if>
+                    <if test="timeType == 3">'%Y'</if>) = #{beginDate}
+                </if>
+            </if>
+            <if test="timeType == 1">
+                <!-- 周 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &gt;= #{beginDate}
+                </if>
+                <if test="endDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &lt;= #{endDate}
+                </if>
+            </if>
+        </where>
+        GROUP BY bb.base_biz_id, bb.base_biz_name
+        ORDER BY handle_count DESC
+    </select>
+    
+    <!-- 人员工作量统计 -->
+    <select id="getUserWorkloadStatistics" resultMap="userStatistics">
+        SELECT 
+            ju.job_user_id,
+            ju.job_user_name,
+            COUNT(hbr.handle_biz_id) AS handle_count
+        FROM evaluate_sys.job_user ju
+        LEFT JOIN evaluate_sys.handle_biz_record hbr ON ju.job_user_id = hbr.job_user_id
+        <where>
+            <if test="timeType != 1">
+                <!-- 日/月/年 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,
+                    <if test="timeType == 0">'%Y-%m-%d'</if>
+                    <if test="timeType == 2">'%Y-%m'</if>
+                    <if test="timeType == 3">'%Y'</if>) = #{beginDate}
+                </if>
+            </if>
+            <if test="timeType == 1">
+                <!-- 周 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &gt;= #{beginDate}
+                </if>
+                <if test="endDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &lt;= #{endDate}
+                </if>
+            </if>
+        </where>
+        GROUP BY ju.job_user_id, ju.job_user_name
+        ORDER BY handle_count DESC
+    </select>
+    
+    <!-- 业务办理时长统计 -->
+    <select id="getHandleDurationStatistics" resultMap="durationStatistics">
+        SELECT 
+            bb.base_biz_id,
+            bb.base_biz_name,
+            COUNT(hbr.handle_biz_id) AS handle_count,
+            AVG(TIMESTAMPDIFF(SECOND, hbr.handle_start_date, hbr.handle_end_date)) AS avg_duration,
+            MAX(TIMESTAMPDIFF(SECOND, hbr.handle_start_date, hbr.handle_end_date)) AS max_duration,
+            MIN(TIMESTAMPDIFF(SECOND, hbr.handle_start_date, hbr.handle_end_date)) AS min_duration
+        FROM evaluate_sys.base_biz bb
+        LEFT JOIN evaluate_sys.handle_biz_record hbr ON bb.base_biz_id = hbr.base_biz_id
+        <where>
+            hbr.handle_end_date IS NOT NULL
+            <if test="bizId != null">
+                AND bb.base_biz_id = #{bizId}
+            </if>
+            <if test="timeType != 1">
+                <!-- 日/月/年 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,
+                    <if test="timeType == 0">'%Y-%m-%d'</if>
+                    <if test="timeType == 2">'%Y-%m'</if>
+                    <if test="timeType == 3">'%Y'</if>) = #{beginDate}
+                </if>
+            </if>
+            <if test="timeType == 1">
+                <!-- 周 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &gt;= #{beginDate}
+                </if>
+                <if test="endDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &lt;= #{endDate}
+                </if>
+            </if>
+        </where>
+        GROUP BY bb.base_biz_id, bb.base_biz_name
+        ORDER BY avg_duration DESC
+    </select>
+    
+    <!-- 人员业务办理详细统计(包含评价) -->
+    <select id="getUserDetailStatistics" resultMap="userDetailStatistics">
+        SELECT 
+            ju.job_user_id,
+            ju.job_user_name,
+            COUNT(DISTINCT hbr.handle_biz_id) AS handle_count,
+            AVG(TIMESTAMPDIFF(SECOND, hbr.handle_start_date, hbr.handle_end_date)) AS avg_duration,
+            SUM(CASE WHEN e.evaluate_type = '1' THEN 1 ELSE 0 END) AS good_count,
+            SUM(CASE WHEN e.evaluate_type = '2' THEN 1 ELSE 0 END) AS medium_count,
+            SUM(CASE WHEN e.evaluate_type = '3' THEN 1 ELSE 0 END) AS bad_count,
+            ROUND(SUM(CASE WHEN e.evaluate_type = '1' THEN 1 ELSE 0 END) * 100.0 / COUNT(DISTINCT e.evaluate_id), 2) AS good_rate
+        FROM evaluate_sys.job_user ju
+        LEFT JOIN evaluate_sys.handle_biz_record hbr ON ju.job_user_id = hbr.job_user_id
+        LEFT JOIN evaluate_sys.evaluate e ON hbr.handle_biz_id = e.handle_biz_id
+        <where>
+            hbr.handle_end_date IS NOT NULL
+            <if test="userId != null">
+                AND ju.job_user_id = #{userId}
+            </if>
+            <if test="timeType != 1">
+                <!-- 日/月/年 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,
+                    <if test="timeType == 0">'%Y-%m-%d'</if>
+                    <if test="timeType == 2">'%Y-%m'</if>
+                    <if test="timeType == 3">'%Y'</if>) = #{beginDate}
+                </if>
+            </if>
+            <if test="timeType == 1">
+                <!-- 周 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &gt;= #{beginDate}
+                </if>
+                <if test="endDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &lt;= #{endDate}
+                </if>
+            </if>
+        </where>
+        GROUP BY ju.job_user_id, ju.job_user_name
+        ORDER BY handle_count DESC
+    </select>
+    
+    <!-- 综合统计报表 -->
+    <select id="getComprehensiveStatistics" resultMap="comprehensiveStatistics">
+        SELECT 
+            COUNT(DISTINCT hbr.handle_biz_id) AS total_count,
+            AVG(TIMESTAMPDIFF(SECOND, hbr.handle_start_date, hbr.handle_end_date)) AS avg_duration,
+            SUM(CASE WHEN e.evaluate_type = '1' THEN 1 ELSE 0 END) AS good_count,
+            SUM(CASE WHEN e.evaluate_type = '2' THEN 1 ELSE 0 END) AS medium_count,
+            SUM(CASE WHEN e.evaluate_type = '3' THEN 1 ELSE 0 END) AS bad_count,
+            ROUND(SUM(CASE WHEN e.evaluate_type = '1' THEN 1 ELSE 0 END) * 100.0 / COUNT(DISTINCT e.evaluate_id), 2) AS good_rate
+        FROM evaluate_sys.handle_biz_record hbr
+        LEFT JOIN evaluate_sys.evaluate e ON hbr.handle_biz_id = e.handle_biz_id
+        <where>
+            hbr.handle_end_date IS NOT NULL
+            <if test="timeType != 1">
+                <!-- 日/月/年 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,
+                    <if test="timeType == 0">'%Y-%m-%d'</if>
+                    <if test="timeType == 2">'%Y-%m'</if>
+                    <if test="timeType == 3">'%Y'</if>) = #{beginDate}
+                </if>
+            </if>
+            <if test="timeType == 1">
+                <!-- 周 -->
+                <if test="beginDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &gt;= #{beginDate}
+                </if>
+                <if test="endDate != null">
+                    AND DATE_FORMAT(hbr.handle_start_date,'%Y-%m-%d') &lt;= #{endDate}
+                </if>
+            </if>
+        </where>
+    </select>
+    
+</mapper>

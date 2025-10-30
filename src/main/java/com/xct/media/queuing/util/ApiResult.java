@@ -15,7 +15,7 @@ public class ApiResult<T> {
     private String message;
 
     // 正常时的数据封装
-    private T data;
+    private T restData;
 
 
     public int getRestCode() {
@@ -34,12 +34,42 @@ public class ApiResult<T> {
         this.message = message;
     }
 
-    public T getData() {
-        return data;
+    public T getRestData() {
+        return restData;
     }
 
-    public void setData(T data) {
-        this.data = data;
+    public void setRestData(T restData) {
+        this.restData = restData;
+    }
+
+    /**
+     * 成功返回结果
+     * 
+     * @param data 返回数据
+     * @param <T> 数据类型
+     * @return ApiResult对象
+     */
+    public static <T> ApiResult<T> success(T data) {
+        ApiResult<T> result = new ApiResult<>();
+        result.setRestCode(0);
+        result.setMessage("success");
+        result.setRestData(data);
+        return result;
+    }
+
+    /**
+     * 失败返回结果
+     * 
+     * @param message 错误信息
+     * @param <T> 数据类型
+     * @return ApiResult对象
+     */
+    public static <T> ApiResult<T> error(String message) {
+        ApiResult<T> result = new ApiResult<>();
+        result.setRestCode(-1);
+        result.setMessage(message);
+        result.setRestData(null);
+        return result;
     }
 
     @Override
